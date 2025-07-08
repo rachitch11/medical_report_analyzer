@@ -1,0 +1,8 @@
+streamlit
+openai
+PyMuPDF
+pandas
+python-dateutil
+altair
+pytesseract
+Pillow
