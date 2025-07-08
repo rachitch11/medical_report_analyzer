@@ -1,61 +1,58 @@
 import streamlit as st
-import pandas as pd
-import altair as alt
+import os
 from utils.pdf_reader import extract_text_and_date
 from utils.report_parser import extract_parameters, extract_tumor_sizes
 from utils.gpt_analysis import analyze_reports
+from datetime import datetime
+import matplotlib.pyplot as plt
 
-st.set_page_config(page_title="Medical Report Analyzer", layout="centered")
-st.title("🧠 Medical Report Analyzer + MRI Tracker")
+st.set_page_config(page_title="Medical Report Analyzer", layout="wide")
 
-uploaded_files = st.file_uploader(
-    "📤 Upload one or more medical reports (PDF, JPG, PNG)",
-    type=["pdf", "jpg", "jpeg", "png"],
-    accept_multiple_files=True
-)
+st.title("🧠 Medical Report Analyzer (PDF & Image)")
+st.markdown("Upload one or more medical reports to get a summary, trends, and abnormalities using GPT-4.")
+
+uploaded_files = st.file_uploader("📁 Upload Reports (PDF, PNG, JPG)", type=["pdf", "png", "jpg", "jpeg"], accept_multiple_files=True)
 
 report_data = []
 
 if uploaded_files:
-    for file in uploaded_files:
-        text, report_date = extract_text_and_date(file)
-        parameters = extract_parameters(text)
-        tumor_sizes = extract_tumor_sizes(text)
+    with st.spinner("🔍 Extracting data from uploaded reports..."):
+        for file in uploaded_files:
+            try:
+                text, report_date = extract_text_and_date(file)
+                parameters = extract_parameters(text)
+                tumor_sizes = extract_tumor_sizes(text)
 
-        report_data.append({
-            "filename": file.name,
-            "date": report_date,
-            "text": text,
-            "parameters": parameters,
-            "tumor_sizes": tumor_sizes
-        })
-
-    report_data.sort(key=lambda x: x["date"])
-
-    # 🔘 Analyze Button
-    if st.button("🔍 Analyze Reports"):
-        result = analyze_reports(report_data)
-
-        st.markdown("### 📋 Final Summary")
-        st.text_area("GPT-4 Summary:", result["summary"], height=400)
-
-        st.markdown("### 🧪 Abnormal Reports Table")
-        st.dataframe(result["abnormal_table"])
-
-        st.markdown("### 📈 Parameter Trend Graphs")
-        trend_data = []
-        for report in report_data:
-            for param, val in report["parameters"].items():
-                trend_data.append({
-                    "Date": report["date"],
-                    "Parameter": param,
-                    "Value": val
+                report_data.append({
+                    "filename": file.name,
+                    "text": text,
+                    "date": report_date,
+                    "parameters": parameters,
+                    "tumor_sizes": tumor_sizes
                 })
+            except Exception as e:
+                st.warning(f"⚠️ Failed to process {file.name}: {e}")
 
-        trend_df = pd.DataFrame(trend_data)
-        for param in trend_df["Parameter"].unique():
-            chart = alt.Chart(trend_df[trend_df["Parameter"] == param]).mark_line(point=True).encode(
-                x="Date:T",
-                y="Value:Q"
-            ).properties(title=f"{param} Over Time")
-            st.altair_chart(chart, use_container_width=True)
+    # ✅ Sort by date safely
+    report_data.sort(
+        key=lambda x: x["date"] if isinstance(x["date"], datetime) else datetime.min
+    )
+
+    # ✅ Log filenames and dates (optional)
+    for r in report_data:
+        st.caption(f"📄 {r['filename']} → 🗓️ Date: {r['date'] if r['date'] else '❓ Not detected'}")
+
+    # ✅ Analyze Button
+    if st.button("🔎 Analyze"):
+        with st.spinner("🧠 Analyzing with GPT..."):
+            try:
+                result = analyze_reports(report_data)
+
+                st.subheader("📊 Abnormal Findings & Impressions")
+                st.dataframe(result["abnormal_table"])
+
+                st.subheader("📝 Final Summary")
+                st.text_area("Summary", result["summary"], height=400)
+
+            except Exception as e:
+                st.error(f"❌ Analysis failed: {e}")
