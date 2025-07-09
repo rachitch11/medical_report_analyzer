@@ -8,3 +8,6 @@ pytesseract
 Pillow
 matplotlib
 pdfplumber
+gspread
+oauth2client
+bcrypt
