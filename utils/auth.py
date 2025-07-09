@@ -4,15 +4,18 @@ import bcrypt
 import streamlit as st
 from oauth2client.service_account import ServiceAccountCredentials
 
+# Google API scopes
 SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-ADMIN_EMAIL = "rachit@example.com"  # your admin email (no usage limit)
+
+# Admin email (no usage limits applied to this user)
+ADMIN_EMAIL = "rachit@example.com"
 
 def get_sheet():
     try:
-        # If running locally
+        # Use local credentials file if running locally (optional)
         creds = ServiceAccountCredentials.from_json_keyfile_name("gcp_credentials.json", SCOPE)
     except:
-        # If running on Streamlit Cloud
+        # If running on Streamlit Cloud, load from secrets
         gcp_creds = json.loads(st.secrets["GCP_CREDS"])
         creds = ServiceAccountCredentials.from_json_keyfile_dict(gcp_creds, SCOPE)
 
@@ -24,8 +27,8 @@ def get_user_data(email):
     sheet = get_sheet()
     data = sheet.get_all_records()
     for i, row in enumerate(data):
-        if row['email'] == email:
-            return i + 2, row  # return row number and data
+        if row['email'].strip().lower() == email.strip().lower():
+            return i + 2, row  # +2 for 1-based indexing and header row
     return None, None
 
 def add_new_user(email, password, max_usage=5):
@@ -37,18 +40,18 @@ def verify_password(stored_hash, entered_password):
     return bcrypt.checkpw(entered_password.encode(), stored_hash.encode())
 
 def update_usage(email):
-    if email == ADMIN_EMAIL:
+    if email.strip().lower() == ADMIN_EMAIL.strip().lower():
         return True
     row_num, user = get_user_data(email)
     if user:
         if user['usage'] < user['max_usage']:
             sheet = get_sheet()
-            sheet.update_cell(row_num, 3, user['usage'] + 1)  # column 3 = usage
+            sheet.update_cell(row_num, 3, user['usage'] + 1)  # column 3 = 'usage'
             return True
     return False
 
 def remaining_uses(email):
-    if email == ADMIN_EMAIL:
+    if email.strip().lower() == ADMIN_EMAIL.strip().lower():
         return float('inf')
     _, user = get_user_data(email)
     if user:
