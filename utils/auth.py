@@ -3,6 +3,7 @@ import streamlit as st
 from google.oauth2 import service_account
 
 ADMIN_EMAIL = "rachit@example.com"
+
 SCOPE = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
@@ -25,21 +26,24 @@ def get_user_data(email):
     sheet = get_sheet()
     data = sheet.get_all_records()
     for i, row in enumerate(data):
-        if row.get("email") == email:
-            return i + 2, row  # row number, data
+        if row["email"] == email:
+            return i + 2, row  # 2 accounts for header
     return None, None
 
 def add_new_user(email, password, name, max_usage=5):
     sheet = get_sheet()
     sheet.append_row([email, password, 0, max_usage, name])
 
+def verify_password(stored_password, entered_password):
+    return stored_password == entered_password
+
 def update_usage(email):
     if email == ADMIN_EMAIL:
         return True
     row_num, user = get_user_data(email)
-    if user and user['usage'] < user['max_usage']:
+    if user and user["usage"] < user["max_usage"]:
         sheet = get_sheet()
-        sheet.update_cell(row_num, 3, user['usage'] + 1)
+        sheet.update_cell(row_num, 3, user["usage"] + 1)  # usage is 3rd column
         return True
     return False
 
@@ -48,5 +52,5 @@ def remaining_uses(email):
         return float("inf")
     _, user = get_user_data(email)
     if user:
-        return user['max_usage'] - user['usage']
+        return user["max_usage"] - user["usage"]
     return 0
