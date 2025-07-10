@@ -35,24 +35,23 @@ if not st.session_state.authenticated:
             else:
                 st.error("❌ Invalid credentials")
 
-   with tab2:
-    name = st.text_input("👤 Your name", key="signup_name")
-    new_email = st.text_input("📧 New email", key="signup_email")
-    new_password = st.text_input("🔐 New password", type="password", key="signup_password")
-    confirm_password = st.text_input("🔁 Confirm password", type="password", key="signup_confirm")
+    with tab2:
+        name = st.text_input("👤 Your name", key="signup_name")
+        new_email = st.text_input("📧 New email", key="signup_email")
+        new_password = st.text_input("🔐 New password", type="password", key="signup_password")
+        confirm_password = st.text_input("🔁 Confirm password", type="password", key="signup_confirm")
 
-    if st.button("Sign Up"):
-        _, user = get_user_data(new_email)
-        if user:
-            st.error("❌ User already exists")
-        elif not name or not new_email or not new_password or not confirm_password:
-            st.warning("⚠️ Please fill in all fields.")
-        elif new_password != confirm_password:
-            st.error("❌ Passwords do not match")
-        else:
-            add_new_user(new_email, new_password, name)
-            st.success("✅ Account created. You can log in now.")
-
+        if st.button("Sign Up"):
+            _, user = get_user_data(new_email)
+            if user:
+                st.error("❌ User already exists")
+            elif not name or not new_email or not new_password or not confirm_password:
+                st.warning("⚠️ Please fill in all fields.")
+            elif new_password != confirm_password:
+                st.error("❌ Passwords do not match")
+            else:
+                add_new_user(new_email, new_password, name)
+                st.success("✅ Account created. You can log in now.")
 
 else:
     st.success(f"✅ Logged in as {st.session_state.name} ({st.session_state.email}) — Remaining uses: {remaining_uses(st.session_state.email)}")
@@ -72,6 +71,5 @@ else:
 
     # 🔒 Logout Button
     if st.button("Logout"):
-       st.session_state.clear()
-       st.rerun()
-
+        st.session_state.clear()
+        st.rerun()
