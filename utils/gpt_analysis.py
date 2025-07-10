@@ -17,8 +17,7 @@ def analyze_reports(report_data):
         max_chars = 6000
         safe_text = report['text'][:max_chars]
 
-        # ✅ Use GPT-4 or optionally GPT-3.5
-        # model_name = "gpt-4" if i == len(report_data) - 1 else "gpt-3.5-turbo"
+        # ✅ Use GPT-4
         model_name = "gpt-4"
 
         prompt = f"""
