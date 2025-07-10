@@ -62,15 +62,32 @@ else:
         accept_multiple_files=True
     )
 
-    if uploaded_files:
-        st.success(f"📄 {len(uploaded_files)} file(s) uploaded.")
-        
-        if st.button("🔍 Analyze Reports"):
-            if update_usage(st.session_state.email):
-                st.info("🧪 Analyzing reports...")
-                # 🔬 TODO: Add your GPT-based analysis logic here
+if uploaded_files:
+    from utils.pdf_reader import extract_text_from_pdf
+    from utils.ocr_reader import extract_text_from_image
+    from utils.gpt_analysis import analyze_text_with_gpt
+
+    if st.button("🔍 Analyze Reports"):
+        if update_usage(st.session_state.email):
+            st.info("🧪 Analyzing reports...")
+
+            combined_text = ""
+
+            for file in uploaded_files:
+                if file.name.endswith(".pdf"):
+                    combined_text += extract_text_from_pdf(file) + "\n"
+                else:
+                    combined_text += extract_text_from_image(file) + "\n"
+
+            if combined_text.strip():
+                result = analyze_text_with_gpt(combined_text)
+                st.subheader("📋 Analysis Result")
+                st.markdown(result)
             else:
-                st.error("❌ Usage limit reached.")
+                st.warning("❗ No readable text found in uploaded files.")
+        else:
+            st.error("❌ Usage limit reached.")
+
 
     # 🔒 Logout Button
     if st.button("Logout"):
