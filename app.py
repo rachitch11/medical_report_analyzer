@@ -64,9 +64,9 @@ else:
             # TODO: Add GPT-based analysis logic here
         else:
             st.error("❌ Usage limit reached.")
-   
+
     # 🔒 Logout Button
-  if st.button("Logout"):
-    st.session_state.clear()  # Clears all session variables safely
-    st.success("✅ Logged out successfully.")
-    st.stop()  # Prevents further code execution and avoids rerun crash
+    if st.button("Logout"):
+        st.session_state.clear()
+        st.success("✅ Logged out successfully.")
+        st.stop()
