@@ -3,7 +3,7 @@ import bcrypt
 import streamlit as st
 from google.oauth2 import service_account
 
-ADMIN_EMAIL = "rachit@example.com"
+ADMIN_EMAIL = "rachit87911094@gmail.com"
 
 SCOPE = [
     "https://www.googleapis.com/auth/spreadsheets",
