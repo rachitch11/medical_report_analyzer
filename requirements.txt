@@ -1,15 +1,8 @@
 streamlit
 openai
-PyMuPDF
-pandas
-python-dateutil
-altair
 pytesseract
 Pillow
-matplotlib
 pdfplumber
+python-dateutil
 gspread
-oauth2client
-bcrypt
-tesseract-ocr
-poppler-utils
+google-auth
