@@ -3,16 +3,16 @@ from utils.auth import (
     get_user_data, verify_password,
     add_new_user, update_usage, remaining_uses
 )
+from utils.pdf_reader import extract_text_and_date
+from utils.report_parser import parse_medical_report
+from utils.gpt_analysis import analyze_reports
 
 st.set_page_config(page_title="🧠 Medical Report Analyzer", layout="centered")
 
 # Initialize session state
-if "authenticated" not in st.session_state:
-    st.session_state.authenticated = False
-if "email" not in st.session_state:
-    st.session_state.email = None
-if "name" not in st.session_state:
-    st.session_state.name = ""
+for key in ["authenticated", "email", "name", "reports"]:
+    if key not in st.session_state:
+        st.session_state[key] = None if key != "authenticated" else False
 
 st.title("🧠 Medical Report Analyzer (PDF & Image)")
 st.caption("Upload one or more medical reports to get a summary, trends, and abnormalities using GPT-4.")
@@ -30,7 +30,7 @@ if not st.session_state.authenticated:
                 st.session_state.authenticated = True
                 st.session_state.email = email
                 st.session_state.name = user.get("name", "")
-                st.success(f"✅ Welcome, {email}. You have {remaining_uses(email)} uses remaining.")
+                st.success(f"✅ Welcome, {st.session_state.name}. You have {remaining_uses(email)} uses remaining.")
                 st.rerun()
             else:
                 st.error("❌ Invalid credentials")
@@ -57,39 +57,43 @@ else:
     st.success(f"✅ Logged in as {st.session_state.name} ({st.session_state.email}) — Remaining uses: {remaining_uses(st.session_state.email)}")
 
     uploaded_files = st.file_uploader(
-        "📁 Upload your medical reports",
+        "📁 Upload your medical reports (PDF or image)",
         type=["pdf", "png", "jpg", "jpeg"],
         accept_multiple_files=True
     )
 
-if uploaded_files:
-    from utils.pdf_reader import extract_text_from_pdf
-    from utils.ocr_reader import extract_text_from_image
-    from utils.gpt_analysis import analyze_text_with_gpt
+    if uploaded_files:
+        report_data = []
+        for file in uploaded_files:
+            try:
+                text, date = extract_text_and_date(file)
+                parameters, tumor_sizes = parse_medical_report(text)
+                report_data.append({
+                    "filename": file.name,
+                    "text": text,
+                    "date": date,
+                    "parameters": parameters,
+                    "tumor_sizes": tumor_sizes
+                })
+            except Exception as e:
+                st.error(f"❌ Error in {file.name}: {e}")
 
-    if st.button("🔍 Analyze Reports"):
-        if update_usage(st.session_state.email):
-            st.info("🧪 Analyzing reports...")
+        st.session_state.reports = report_data
 
-            combined_text = ""
+        if st.button("🧠 Analyze Reports"):
+            if update_usage(st.session_state.email):
+                with st.spinner("Analyzing with GPT..."):
+                    result = analyze_reports(st.session_state.reports)
+                    st.subheader("📋 Summary")
+                    st.write(result["summary"])
 
-            for file in uploaded_files:
-                if file.name.endswith(".pdf"):
-                    combined_text += extract_text_from_pdf(file) + "\n"
-                else:
-                    combined_text += extract_text_from_image(file) + "\n"
-
-            if combined_text.strip():
-                result = analyze_text_with_gpt(combined_text)
-                st.subheader("📋 Analysis Result")
-                st.markdown(result)
+                    st.subheader("📊 Detailed Report")
+                    st.dataframe(result["abnormal_table"], use_container_width=True)
             else:
-                st.warning("❗ No readable text found in uploaded files.")
-        else:
-            st.error("❌ Usage limit reached.")
-
+                st.error("❌ Usage limit reached.")
 
     # 🔒 Logout Button
     if st.button("Logout"):
         st.session_state.clear()
+        st.success("✅ Logged out successfully.")
         st.rerun()
