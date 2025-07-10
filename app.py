@@ -66,9 +66,7 @@ else:
             st.error("❌ Usage limit reached.")
    
     # 🔒 Logout Button
-    if st.button("Logout"):
-        st.session_state.authenticated = False
-        st.session_state.email = None
-        st.session_state.name = ""
-        st.success("✅ Logged out successfully.")
-        st.experimental_rerun()
+  if st.button("Logout"):
+    st.session_state.clear()  # Clears all session variables safely
+    st.success("✅ Logged out successfully.")
+    st.stop()  # Prevents further code execution and avoids rerun crash
