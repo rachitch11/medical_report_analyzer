@@ -62,12 +62,16 @@ else:
         accept_multiple_files=True
     )
 
-    if uploaded_files:
+   if uploaded_files:
+    st.success(f"📄 {len(uploaded_files)} file(s) uploaded.")
+    
+    if st.button("🔍 Analyze Reports"):
         if update_usage(st.session_state.email):
-            st.write("🧪 Analyzing reports...")
-            # TODO: Add GPT-based analysis logic here
+            st.info("🧪 Analyzing reports...")
+            # 🔬 TODO: Add your GPT-based analysis logic here
         else:
             st.error("❌ Usage limit reached.")
+
 
     # 🔒 Logout Button
     if st.button("Logout"):
