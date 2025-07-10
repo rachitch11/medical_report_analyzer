@@ -12,7 +12,13 @@ if "email" not in st.session_state:
 st.title("🧠 Medical Report Analyzer (PDF & Image)")
 st.caption("Upload one or more medical reports to get a summary, trends, and abnormalities using GPT-4.")
 
-# 👇 Login and Sign Up
+# 🚪 Logout logic
+if st.session_state.authenticated and st.button("🚪 Logout"):
+    st.session_state.authenticated = False
+    st.session_state.email = None
+    st.rerun()
+
+# 🔐 Login / Signup
 if not st.session_state.authenticated:
     tab1, tab2 = st.tabs(["🔐 Login", "🆕 Sign Up"])
 
@@ -22,7 +28,7 @@ if not st.session_state.authenticated:
 
         if st.button("Login"):
             _, user = get_user_data(email)
-            if user and verify_password(user["password"], password):
+            if user and verify_password(user["password_hash"], password):
                 st.session_state.authenticated = True
                 st.session_state.email = email
                 st.success(f"✅ Welcome, {email}. You have {remaining_uses(email)} uses remaining.")
@@ -41,39 +47,15 @@ if not st.session_state.authenticated:
                 add_new_user(new_email, new_password)
                 st.success("✅ Account created. You can log in now.")
 
-# 👇 Authenticated UI
+# ✅ Authenticated User Interface
 else:
     st.success(f"✅ Logged in as {st.session_state.email} — Remaining uses: {remaining_uses(st.session_state.email)}")
 
-    uploaded_files = st.file_uploader(
-        "📁 Upload your medical reports",
-        type=["pdf", "png", "jpg", "jpeg"],
-        accept_multiple_files=True
-    )
+    uploaded_files = st.file_uploader("📁 Upload your medical reports", type=["pdf", "png", "jpg", "jpeg"], accept_multiple_files=True)
 
     if uploaded_files:
         if update_usage(st.session_state.email):
             st.write("🧪 Analyzing reports...")
-            # 🔍 Replace this with your actual analysis logic
-            # result = analyze_reports(uploaded_files)
-            # st.write(result)
-
-            st.success("✅ Analysis complete.")
-
-            # Logout button after analysis
-            st.markdown("---")
-            if st.button("🔓 Logout"):
-                del st.session_state["authenticated"]
-                del st.session_state["email"]
-                st.success("🔒 Logged out successfully.")
-                st.experimental_rerun()
+            # 🔍 Call your GPT/analysis logic here
         else:
             st.error("❌ Usage limit reached.")
-
-    # Also allow logout without uploading
-    st.markdown("---")
-    if st.button("🔓 Logout"):
-        del st.session_state["authenticated"]
-        del st.session_state["email"]
-        st.success("🔒 Logged out successfully.")
-        st.experimental_rerun()
