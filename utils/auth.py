@@ -2,7 +2,8 @@ import gspread
 import streamlit as st
 from google.oauth2 import service_account
 
-ADMIN_EMAIL = "rachit@example.com"
+# ✅ Admin email with unlimited usage
+ADMIN_EMAIL = "rachit87911094@gmail.com"
 
 SCOPE = [
     "https://www.googleapis.com/auth/spreadsheets",
@@ -26,19 +27,19 @@ def get_user_data(email):
     sheet = get_sheet()
     data = sheet.get_all_records()
     for i, row in enumerate(data):
-        if row["email"] == email:
-            return i + 2, row  # 2 accounts for header
+        if row.get("email", "").strip().lower() == email.strip().lower():
+            return i + 2, row  # +2 for header and 1-based index
     return None, None
 
 def add_new_user(email, password, name, max_usage=5):
     sheet = get_sheet()
-    sheet.append_row([email, password, 0, max_usage, name])
+    sheet.append_row([email.strip().lower(), password.strip(), 0, max_usage, name.strip()])
 
 def verify_password(stored_password, entered_password):
-    return stored_password == entered_password
+    return stored_password.strip() == entered_password.strip()
 
 def update_usage(email):
-    if email == ADMIN_EMAIL:
+    if email.strip().lower() == ADMIN_EMAIL.strip().lower():
         return True
     row_num, user = get_user_data(email)
     if user and user["usage"] < user["max_usage"]:
@@ -48,7 +49,7 @@ def update_usage(email):
     return False
 
 def remaining_uses(email):
-    if email == ADMIN_EMAIL:
+    if email.strip().lower() == ADMIN_EMAIL.strip().lower():
         return float("inf")
     _, user = get_user_data(email)
     if user:
