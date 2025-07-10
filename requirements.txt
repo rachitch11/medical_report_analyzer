@@ -11,3 +11,5 @@ pdfplumber
 gspread
 oauth2client
 bcrypt
+tesseract-ocr
+poppler-utils
