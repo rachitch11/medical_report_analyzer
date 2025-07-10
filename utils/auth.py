@@ -36,9 +36,11 @@ def add_new_user(email, password, name, max_usage=5):
     sheet.append_row([email.strip().lower(), password.strip(), 0, max_usage, name.strip()])
 
 def verify_password(stored_password, entered_password):
-    if not stored_password or not entered_password:
+    try:
+        return str(stored_password).strip() == str(entered_password).strip()
+    except Exception:
         return False
-    return stored_password.strip() == entered_password.strip()
+
 
 
 def update_usage(email):
