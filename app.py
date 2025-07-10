@@ -28,7 +28,7 @@ if not st.session_state.authenticated:
 
         if st.button("Login"):
             _, user = get_user_data(email)
-            if user and verify_password(user["password_hash"], password):
+            if user and verify_password(user["password"], password):
                 st.session_state.authenticated = True
                 st.session_state.email = email
                 st.success(f"✅ Welcome, {email}. You have {remaining_uses(email)} uses remaining.")
