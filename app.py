@@ -67,6 +67,6 @@ else:
 
     # 🔒 Logout Button
     if st.button("Logout"):
-        st.session_state.clear()
-        st.success("✅ Logged out successfully.")
-        st.stop()
+       st.session_state.clear()
+       st.rerun()
+
