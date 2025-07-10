@@ -1,10 +1,7 @@
 import re
+from .pdf_reader import extract_text_and_date
 
 def extract_parameters(text):
-    """
-    Extracts key health parameters from the medical report text.
-    Returns a dictionary with values like blood sugar, BP, cholesterol, etc.
-    """
     patterns = {
         "Blood Sugar": r"blood sugar.*?(\d+)",
         "BP Systolic": r"(?:BP|blood pressure).*?(\d{2,3})\/(\d{2,3})",
@@ -24,9 +21,18 @@ def extract_parameters(text):
     return result
 
 def extract_tumor_sizes(text):
-    """
-    Extracts tumor size mentions in the format 'X x Y cm/mm'.
-    Returns a list of size strings like '2.3 x 1.5 cm'.
-    """
     matches = re.findall(r"(\d+(?:\.\d+)?) ?[xX×*] ?(\d+(?:\.\d+)?) ?(cm|mm)", text)
     return [f"{m[0]} x {m[1]} {m[2]}" for m in matches]
+
+def parse_medical_report(file):
+    text, date = extract_text_and_date(file)
+    parameters = extract_parameters(text)
+    tumor_sizes = extract_tumor_sizes(text)
+    
+    return {
+        "text": text,
+        "date": date,
+        "filename": file.name,
+        "parameters": parameters,
+        "tumor_sizes": tumor_sizes
+    }
