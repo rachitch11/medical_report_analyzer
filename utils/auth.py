@@ -16,14 +16,14 @@ def get_sheet():
         credentials = service_account.Credentials.from_service_account_file(
             "gcp_credentials.json", scopes=SCOPE
         )
-        st.write("✅ Loaded credentials from local file")
+        st.write("✅ Loaded ")
     except:
         # ✅ Streamlit Cloud - from secrets
         credentials = service_account.Credentials.from_service_account_info(
             st.secrets["GCP_CREDS"],
             scopes=SCOPE
         )
-        st.write("✅ Loaded credentials from Streamlit secrets")
+        st.write("✅ Loaded")
 
     client = gspread.authorize(credentials)
     sheet = client.open("MedicalReportUsers").worksheet("users")
