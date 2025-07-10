@@ -3,7 +3,6 @@ from utils.auth import (
     get_user_data, verify_password,
     add_new_user, update_usage, remaining_uses
 )
-from utils.pdf_reader import extract_text_and_date
 from utils.report_parser import parse_medical_report
 from utils.gpt_analysis import analyze_reports
 
@@ -66,29 +65,23 @@ else:
         report_data = []
         for file in uploaded_files:
             try:
-                text, date = extract_text_and_date(file)
-                parameters, tumor_sizes = parse_medical_report(text)
-                report_data.append({
-                    "filename": file.name,
-                    "text": text,
-                    "date": date,
-                    "parameters": parameters,
-                    "tumor_sizes": tumor_sizes
-                })
+                report = parse_medical_report(file)
+                report_data.append(report)
             except Exception as e:
                 st.error(f"❌ Error in {file.name}: {e}")
 
         st.session_state.reports = report_data
 
-        if st.button("🧠 Analyze Reports"):
+        if st.button("🧠 Analyze Reports") and report_data:
             if update_usage(st.session_state.email):
                 with st.spinner("Analyzing with GPT..."):
-                    result = analyze_reports(st.session_state.reports)
-                    st.subheader("📋 Summary")
-                    st.write(result["summary"])
+                    result = analyze_reports(report_data)
 
-                    st.subheader("📊 Detailed Report")
-                    st.dataframe(result["abnormal_table"], use_container_width=True)
+                st.subheader("📋 Summary")
+                st.write(result["summary"])
+
+                st.subheader("📊 Detailed Report")
+                st.dataframe(result["abnormal_table"], use_container_width=True)
             else:
                 st.error("❌ Usage limit reached.")
 
