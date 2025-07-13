@@ -17,8 +17,8 @@ def analyze_reports(report_data):
         max_chars = 6000
         safe_text = report['text'][:max_chars]
 
-        # ✅ Use GPT-4
-        model_name = "gpt-4"
+        # ✅ Use GPT-3.5
+        model_name ="gpt-3.5-turbo"
 
         prompt = f"""
 You are a medical assistant. Analyze the following medical report dated {report['date']}.
