@@ -9,6 +9,7 @@ from utils.gpt_analysis import analyze_reports
 
 st.set_page_config(page_title="🧠 Medical Report Analyzer", layout="centered")
 
+# Session state init
 for key in ["authenticated", "email", "name", "reports"]:
     if key not in st.session_state:
         st.session_state[key] = None if key != "authenticated" else False
@@ -16,9 +17,11 @@ for key in ["authenticated", "email", "name", "reports"]:
 st.title("🧠 Medical Report Analyzer (PDF & Image)")
 st.caption("Upload one or more medical reports to get a summary, trends, and abnormalities using GPT-4.")
 
+# Auth section
 if not st.session_state.authenticated:
     tab1, tab2 = st.tabs(["🔐 Login", "🆕 Sign Up"])
 
+    # -------------------- LOGIN TAB --------------------
     with tab1:
         email = st.text_input("📧 Enter your email", key="login_email")
         password = st.text_input("🔐 Enter your password", type="password", key="login_password")
@@ -37,6 +40,7 @@ if not st.session_state.authenticated:
             else:
                 st.error("❌ Invalid credentials")
 
+    # -------------------- SIGNUP TAB --------------------
     with tab2:
         name = st.text_input("👤 Your name", key="signup_name")
         new_email = st.text_input("📧 New email", key="signup_email")
@@ -48,26 +52,48 @@ if not st.session_state.authenticated:
         if st.button("Generate OTP"):
             _, user = get_user_data(new_email)
             if user:
-                st.error("❌ User already exists")
-            elif not name or not new_email or not new_password or not confirm_password or not age:
+                st.error("❌ User already exists.")
+            elif not all([name, new_email, new_password, confirm_password, age]):
                 st.warning("⚠️ Please fill all fields.")
             elif new_password != confirm_password:
-                st.error("❌ Passwords do not match")
+                st.error("❌ Passwords do not match.")
             else:
-                otp = generate_and_send_otp(new_email)
-                add_new_user(new_email, new_password, name, age, gender, otp)
-                st.session_state.otp_email = new_email
-                st.success("✅ OTP sent to your email.")
+                try:
+                    otp = generate_and_send_otp(new_email)
+                    st.session_state.otp_email = new_email
+                    st.session_state.temp_user = {
+                        "email": new_email,
+                        "password": new_password,
+                        "name": name,
+                        "age": age,
+                        "gender": gender,
+                        "otp": otp
+                    }
+                    st.success("✅ OTP sent to your email.")
+                except KeyError as e:
+                    st.error(f"❌ Server configuration error: {e}")
 
         if "otp_email" in st.session_state:
             entered_otp = st.text_input("🔑 Enter OTP sent to your email")
             if st.button("Verify OTP"):
                 if verify_otp(st.session_state.otp_email, entered_otp):
+                    # Add new user only after successful OTP verification
+                    temp_user = st.session_state.temp_user
+                    add_new_user(
+                        temp_user["email"],
+                        temp_user["password"],
+                        temp_user["name"],
+                        temp_user["age"],
+                        temp_user["gender"],
+                        temp_user["otp"]
+                    )
                     st.success("✅ Email verified. You can now log in.")
                     del st.session_state.otp_email
+                    del st.session_state.temp_user
                 else:
                     st.error("❌ Invalid OTP")
 
+# -------------------- MAIN APP --------------------
 else:
     st.success(f"✅ Logged in as {st.session_state.name} ({st.session_state.email}) — Remaining uses: {remaining_uses(st.session_state.email)}")
 
