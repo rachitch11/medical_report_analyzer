@@ -1,65 +1,67 @@
+import streamlit as st
+import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
-import random
+import json
+from datetime import datetime
 
-SCOPE = [
-    "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive"
-]
+# Define the required scope for Google Sheets and Drive
+SCOPE = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
 
-creds = Credentials.from_service_account_file("gcp_credentials.json", scopes=SCOPE)
+# Load credentials from Streamlit secrets
+creds_dict = st.secrets["gcp_service_account"]
+creds = Credentials.from_service_account_info(dict(creds_dict), scopes=SCOPE)
+
+# Initialize the client
 client = gspread.authorize(creds)
-sheet = client.open("MedicalReportUsers").worksheet("users")
 
-ADMIN_EMAIL = "rachit87911094@gmail.com"
+# Google Sheet name
+SHEET_NAME = "MedicalReportAnalyzerUsers"
 
-def get_user_data(email):
-    data = sheet.get_all_records()
-    for idx, row in enumerate(data):
-        if row["email"].strip().lower() == email.strip().lower():
-            return idx + 2, row
-    return None, None
+# Open sheet
+sheet = client.open(SHEET_NAME)
+worksheet = sheet.worksheet("users")  # Assumes your sheet has a tab named "users"
 
-def user_exists(email):
-    _, user = get_user_data(email)
-    return user is not None
+# ----------------- Authentication Functions -----------------
 
-def save_new_user(email, password, name, age, gender, max_usage=5):
-    sheet.append_row([
-        email.lower(), password, 0, max_usage, name, age, gender, "no", ""
-    ])
+def signup(name, email, password, age=None, gender=None):
+    """Registers a new user."""
+    if is_user_exist(email):
+        return False, "User already exists."
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    worksheet.append_row([name, email, password, age, gender, 0, "active", now])
+    return True, "Signup successful."
 
-def send_otp_email(email):
-    otp = str(random.randint(100000, 999999))
-    row_num, user = get_user_data(email)
-    if row_num:
-        sheet.update_cell(row_num, 9, otp)
-    else:
-        # pre-store during signup flow if user doesn't yet exist
-        sheet.append_row([email, "", 0, 5, "", "", "", "no", otp])
-    # simulate sending OTP
-    print(f"Simulated OTP sent to {email}: {otp}")
-    return True
+def login(email, password):
+    """Validates user credentials."""
+    users = worksheet.get_all_records()
+    for user in users:
+        if user["email"] == email and user["password"] == password:
+            return True, user
+    return False, {}
 
-def verify_otp(email, entered_otp):
-    row_num, user = get_user_data(email)
-    return user and str(user.get("otp", "")).strip() == str(entered_otp).strip()
-
-def set_verified(email):
-    row_num, _ = get_user_data(email)
-    sheet.update_cell(row_num, 8, "yes")  # column 8 = verified
-    sheet.update_cell(row_num, 9, "")     # clear OTP
-
-def update_usage(email):
-    if email.lower() == ADMIN_EMAIL.lower():
-        return True
-    row_num, user = get_user_data(email)
-    if user and int(user["usage"]) < int(user["max_usage"]):
-        sheet.update_cell(row_num, 3, int(user["usage"]) + 1)
-        return True
+def is_user_exist(email):
+    """Checks if a user with the given email already exists."""
+    users = worksheet.get_all_records()
+    for user in users:
+        if user["email"] == email:
+            return True
     return False
 
-def remaining_uses(user):
-    if user["email"].strip().lower() == ADMIN_EMAIL:
-        return "∞"
-    return int(user["max_usage"]) - int(user["usage"])
+def get_user_data(email):
+    """Fetches user data based on email."""
+    users = worksheet.get_all_records()
+    for user in users:
+        if user["email"] == email:
+            return user
+    return None
+
+def increment_usage(email):
+    """Increments the usage count for a user."""
+    users = worksheet.get_all_records()
+    for i, user in enumerate(users):
+        if user["email"] == email:
+            new_count = int(user["usage_count"]) + 1
+            worksheet.update_cell(i + 2, 6, new_count)  # Row offset +2 for headers, col 6 = usage_count
+            return new_count
+    return 0
