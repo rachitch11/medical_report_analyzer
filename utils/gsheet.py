@@ -28,14 +28,9 @@ def append_row_to_sheet(sheet_url, row, clear=False):
     else:
         sheet.append_row(row)
 
-# ✅ Update usage count in the sheet
-def update_usage_count(sheet_url, email, new_count):
+# ✅ Final fixed: Update usage count by row number
+def update_usage_count(sheet_url, row_number, new_count):
     client = get_gsheet_client()
     sheet = client.open_by_key(sheet_url).sheet1
-    records = sheet.get_all_records()
-    for idx, row in enumerate(records):
-        if row["email"] == email:
-            cell_row = idx + 2  # +2 because header is row 1 and gspread is 1-indexed
-            usage_col = list(row.keys()).index("usage_count") + 1
-            sheet.update_cell(cell_row, usage_col, new_count)
-            break
+    usage_col = 6 + 1  # "usage_count" is the 6th field (0-indexed), so column 7
+    sheet.update_cell(row_number, usage_col, new_count)
