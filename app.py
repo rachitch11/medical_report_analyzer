@@ -1,28 +1,27 @@
 import streamlit as st
 from utils.auth import (
-    send_otp_email, verify_otp,
-    get_user_data, save_new_user,
-    update_usage, remaining_uses,
-    user_exists
+    send_otp_email, verify_otp, set_verified,
+    get_user_data, save_new_user, update_usage,
+    remaining_uses, user_exists
 )
 from utils.report_parser import parse_medical_report
 from utils.gpt_analysis import analyze_reports
 
 st.set_page_config(page_title="🧠 Medical Report Analyzer", layout="centered")
 
-# --------- Session State Initialization ---------
+# Initialize session state
 for key in ["authenticated", "email", "name", "reports", "signup_info", "otp_email"]:
     if key not in st.session_state:
         st.session_state[key] = None if key != "authenticated" else False
 
 st.title("🧠 Medical Report Analyzer (PDF & Image)")
-st.caption("Upload medical reports to get AI-powered summaries and anomaly detection.")
+st.caption("Upload one or more medical reports to get a summary, trends, and abnormalities using GPT-4.")
 
-# --------- AUTH FLOW ---------
+# -------------------- 🔐 LOGIN/SIGNUP --------------------
 if not st.session_state.authenticated:
     tab1, tab2 = st.tabs(["🔐 Login", "🆕 Sign Up"])
 
-    # --------- LOGIN TAB ---------
+    # ---------------- LOGIN ----------------
     with tab1:
         email = st.text_input("📧 Enter your email to login")
         if st.button("Send OTP", key="login_otp_btn"):
@@ -51,7 +50,7 @@ if not st.session_state.authenticated:
                 else:
                     st.error("❌ Invalid OTP.")
 
-    # --------- SIGNUP TAB ---------
+    # ---------------- SIGNUP ----------------
     with tab2:
         name = st.text_input("👤 Full Name")
         signup_email = st.text_input("📧 Email")
@@ -89,6 +88,7 @@ if not st.session_state.authenticated:
                         info["email"], info["password"], info["name"],
                         info["age"], info["gender"]
                     )
+                    set_verified(info["email"])
                     st.success("✅ Signup complete. You are now logged in.")
                     st.session_state.authenticated = True
                     st.session_state.email = info["email"]
@@ -97,7 +97,7 @@ if not st.session_state.authenticated:
                 else:
                     st.error("❌ Invalid OTP. Try again.")
 
-# --------- MAIN APP AFTER LOGIN ---------
+# -------------------- MAIN APP --------------------
 else:
     st.success(f"✅ Logged in as {st.session_state.name} ({st.session_state.email}) — Remaining uses: {remaining_uses(st.session_state.email)}")
 
