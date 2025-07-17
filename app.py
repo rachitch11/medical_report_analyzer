@@ -1,92 +1,110 @@
 import streamlit as st
-from utils.auth import (
-    get_user_data, verify_password,
-    add_new_user, update_usage, remaining_uses
-)
-from utils.report_parser import parse_medical_report
-from utils.gpt_analysis import analyze_reports
+import pandas as pd
+import random
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from utils.gsheet import get_sheet_data, append_row_to_sheet, update_usage_count
 
-st.set_page_config(page_title="🧠 Medical Report Analyzer", layout="centered")
+# Load secrets
+SHEET_URL = st.secrets["EMAIL"]["SHEET_URL"]
+SENDER_EMAIL = st.secrets["EMAIL"]["sender_email"]
+SENDER_PASSWORD = st.secrets["EMAIL"]["sender_password"]
 
-# Initialize session state
-for key in ["authenticated", "email", "name", "reports"]:
-    if key not in st.session_state:
-        st.session_state[key] = None if key != "authenticated" else False
+def get_user_sheet():
+    return get_sheet_data(SHEET_URL)
 
-st.title("🧠 Medical Report Analyzer (PDF & Image)")
-st.caption("Upload one or more medical reports to get a summary, trends, and abnormalities using GPT-4.")
+def user_exists(email):
+    df = get_user_sheet()
+    return df[df['email'] == email].shape[0] > 0
 
-if not st.session_state.authenticated:
-    tab1, tab2 = st.tabs(["🔐 Login", "🆕 Sign Up"])
+def send_otp_email(receiver_email, otp):
+    msg = MIMEMultipart()
+    msg['From'] = SENDER_EMAIL
+    msg['To'] = receiver_email
+    msg['Subject'] = 'Your OTP for Signup Verification'
+    msg.attach(MIMEText(f'Your OTP for signup verification is: {otp}', 'plain'))
 
-    with tab1:
-        email = st.text_input("📧 Enter your email", key="login_email")
-        password = st.text_input("🔐 Enter your password", type="password", key="login_password")
+    try:
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(SENDER_EMAIL, SENDER_PASSWORD)
+        server.sendmail(SENDER_EMAIL, receiver_email, msg.as_string())
+        server.quit()
+        return True
+    except Exception as e:
+        print("Error sending OTP:", e)
+        return False
 
-        if st.button("Login"):
-            _, user = get_user_data(email)
-            if user and verify_password(user.get("password", ""), password):
-                st.session_state.authenticated = True
-                st.session_state.email = email
-                st.session_state.name = user.get("name", "")
-                st.success(f"✅ Welcome, {st.session_state.name}. You have {remaining_uses(email)} uses remaining.")
-                st.rerun()
-            else:
-                st.error("❌ Invalid credentials")
+def signup(name, email, password, age, gender):
+    if user_exists(email):
+        st.error("User already exists. Please login.")
+        return False
 
-    with tab2:
-        name = st.text_input("👤 Your name", key="signup_name")
-        new_email = st.text_input("📧 New email", key="signup_email")
-        new_password = st.text_input("🔐 New password", type="password", key="signup_password")
-        confirm_password = st.text_input("🔁 Confirm password", type="password", key="signup_confirm")
+    otp = str(random.randint(100000, 999999))
+    if not send_otp_email(email, otp):
+        st.error("Failed to send OTP. Please try again.")
+        return False
 
-        if st.button("Sign Up"):
-            _, user = get_user_data(new_email)
-            if user:
-                st.error("❌ User already exists")
-            elif not name or not new_email or not new_password or not confirm_password:
-                st.warning("⚠️ Please fill in all fields.")
-            elif new_password != confirm_password:
-                st.error("❌ Passwords do not match")
-            else:
-                add_new_user(new_email, new_password, name)
-                st.success("✅ Account created. You can log in now.")
+    st.session_state.otp_expected = otp
+    st.session_state.new_user = {
+        'name': name,
+        'email': email,
+        'password': password,
+        'age': age,
+        'gender': gender,
+        'usage_count': 0,
+        'max_usage': 5
+    }
+    return True
 
-else:
-    st.success(f"✅ Logged in as {st.session_state.name} ({st.session_state.email}) — Remaining uses: {remaining_uses(st.session_state.email)}")
+def verify_otp(otp_entered):
+    if "otp_expected" not in st.session_state or "new_user" not in st.session_state:
+        st.error("No OTP session found. Please start signup again.")
+        return False
 
-    uploaded_files = st.file_uploader(
-        "📁 Upload your medical reports (PDF or image)",
-        type=["pdf", "png", "jpg", "jpeg"],
-        accept_multiple_files=True
-    )
+    if otp_entered != st.session_state.otp_expected:
+        st.error("Incorrect OTP. Please try again.")
+        return False
 
-    if uploaded_files:
-        report_data = []
-        for file in uploaded_files:
-            try:
-                report = parse_medical_report(file)
-                report_data.append(report)
-            except Exception as e:
-                st.error(f"❌ Error in {file.name}: {e}")
+    new_user = st.session_state.new_user
+    append_row_to_sheet(SHEET_URL, [
+        new_user['name'],
+        new_user['email'],
+        new_user['password'],
+        new_user['age'],
+        new_user['gender'],
+        new_user['usage_count'],
+        new_user['max_usage']
+    ])
 
-        st.session_state.reports = report_data
+    st.session_state.pop("otp_expected", None)
+    st.session_state.pop("new_user", None)
 
-        if st.button("🧠 Analyze Reports") and report_data:
-            if update_usage(st.session_state.email):
-                with st.spinner("Analyzing with GPT..."):
-                    result = analyze_reports(report_data)
+    st.success("Signup successful! Please login.")
+    return True
 
-                st.subheader("📋 Summary")
-                st.write(result["summary"])
+def login(email, password):
+    df = get_user_sheet()
+    user_row = df[(df['email'] == email) & (df['password'] == password)]
+    if not user_row.empty:
+        return user_row.iloc[0].to_dict()
+    else:
+        return None
 
-                st.subheader("📊 Detailed Report")
-                st.dataframe(result["abnormal_table"], use_container_width=True)
-            else:
-                st.error("❌ Usage limit reached.")
+def increment_usage(email):
+    df = get_user_sheet()
+    index = df.index[df['email'] == email].tolist()
+    if index:
+        idx = index[0]
+        max_usage = str(df.at[idx, 'max_usage']).strip().lower()
+        if max_usage != "unlimited":
+            current = int(df.at[idx, 'usage_count'])
+            update_usage_count(SHEET_URL, idx + 2, current + 1)  # Google Sheets row starts at 1 (+ header)
 
-    # 🔒 Logout Button
-    if st.button("Logout"):
-        st.session_state.clear()
-        st.success("✅ Logged out successfully.")
-        st.rerun()
+def get_user_info(email):
+    df = get_user_sheet()
+    row = df[df['email'] == email]
+    if not row.empty:
+        return row.iloc[0].to_dict()
+    return None
