@@ -1,80 +1,54 @@
 import gspread
-import streamlit as st
-from google.oauth2 import service_account
-import random
+from google.oauth2.service_account import Credentials
 
-ADMIN_EMAIL = "rachit87911094@gmail.com"
-
+# --- Setup ---
 SCOPE = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
 ]
+CREDS = Credentials.from_service_account_file("secrets.json", scopes=SCOPE)
+client = gspread.authorize(CREDS)
+sheet = client.open("MedicalReportUsers").sheet1  # Make sure this sheet name is correct
 
 def get_sheet():
-    try:
-        credentials = service_account.Credentials.from_service_account_file(
-            "gcp_credentials.json", scopes=SCOPE
-        )
-    except:
-        credentials = service_account.Credentials.from_service_account_info(
-            st.secrets["GCP_CREDS"], scopes=SCOPE
-        )
-    client = gspread.authorize(credentials)
-    sheet = client.open("MedicalReportUsers").worksheet("users")
     return sheet
 
+# --- Get User Data by Email ---
 def get_user_data(email):
     sheet = get_sheet()
     data = sheet.get_all_records()
     for i, row in enumerate(data):
-        if row.get("email", "").strip().lower() == email.strip().lower():
-            return i + 2, row  # row_num for updating
+        if row["email"].strip().lower() == email.strip().lower():
+            return i + 2, row  # +2 to match Google Sheets row index
     return None, None
 
+# --- Add New User ---
 def add_new_user(email, password, name, age, gender, max_usage=5):
     sheet = get_sheet()
-    sheet.append_row([email.strip().lower(), password.strip(), 0, max_usage, name.strip(), age, gender, False, ""])
+    sheet.append_row([
+        email.strip().lower(),
+        password.strip(),
+        0,  # usage
+        max_usage,
+        name.strip(),
+        age,
+        gender,
+        "no",  # verified
+        ""     # otp
+    ])
 
-def verify_password(stored_password, entered_password):
-    return str(stored_password).strip() == str(entered_password).strip()
+# --- Password Check ---
+def verify_password(stored_pw, entered_pw):
+    return stored_pw.strip() == entered_pw.strip()
 
-def update_usage(email):
-    if email.strip().lower() == ADMIN_EMAIL.strip().lower():
-        return True
-    row_num, user = get_user_data(email)
-    if user and user["usage"] < user["max_usage"]:
-        sheet = get_sheet()
-        sheet.update_cell(row_num, 3, user["usage"] + 1)  # usage column
-        return True
-    return False
+# --- Update Usage Count ---
+def update_usage(row_num):
+    sheet = get_sheet()
+    usage = int(sheet.cell(row_num, 3).value)
+    sheet.update_cell(row_num, 3, usage + 1)
 
-def remaining_uses(email):
-    if email.strip().lower() == ADMIN_EMAIL.strip().lower():
-        return float("inf")
-    _, user = get_user_data(email)
-    if user:
-        return user["max_usage"] - user["usage"]
-    return 0
-
-def set_otp(email, otp):
-    row_num, user = get_user_data(email)
-    if row_num:
-        sheet = get_sheet()
-        sheet.update_cell(row_num, 9, otp)  # otp column
-
-def verify_otp(email, entered_otp):
-    _, user = get_user_data(email)
-    return user and str(user.get("otp")) == str(entered_otp)
-
-def set_verified(email):
-    row_num, user = get_user_data(email)
-    if row_num:
-        sheet = get_sheet()
-        sheet.update_cell(row_num, 8, "TRUE")  # verified column
-
-def is_verified(email):
-    _, user = get_user_data(email)
-    return user and str(user.get("verified", "")).strip().lower() == "true"
-
-def generate_otp():
-    return str(random.randint(100000, 999999))
+# --- Remaining Uses ---
+def remaining_uses(user):
+    max_usage = user["max_usage"]
+    usage = user["usage"]
+    return "Unlimited" if max_usage == "unlimited" else int(max_usage) - int(usage)
