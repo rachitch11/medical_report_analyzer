@@ -15,7 +15,7 @@ for key in ["authenticated", "email", "name", "reports", "signup_info", "otp_ema
         st.session_state[key] = None if key != "authenticated" else False
 
 st.title("🧠 Medical Report Analyzer (PDF & Image)")
-st.caption("Upload one or more medical reports to get a summary, trends, and abnormalities using GPT-4.")
+st.caption("Upload medical reports to get a summary, trends, and abnormalities using GPT-4.")
 
 # -------------------- 🔐 LOGIN/SIGNUP --------------------
 if not st.session_state.authenticated:
@@ -24,21 +24,23 @@ if not st.session_state.authenticated:
     # ---------------- LOGIN ----------------
     with tab1:
         email = st.text_input("📧 Enter your email to login")
+
         if st.button("Send OTP", key="login_otp_btn"):
-            if not user_exists(email):
+            if not email:
+                st.warning("⚠️ Please enter your email.")
+            elif not user_exists(email):
                 st.error("❌ User not found. Please sign up first.")
+            elif send_otp_email(email):
+                st.success("✅ OTP sent to your email.")
+                st.session_state.otp_email = email
             else:
-                if send_otp_email(email):
-                    st.success("✅ OTP sent to your email.")
-                    st.session_state.otp_email = email
-                else:
-                    st.error("❌ Failed to send OTP. Try again.")
+                st.error("❌ Failed to send OTP. Try again.")
 
         if st.session_state.otp_email:
             login_otp = st.text_input("🔐 Enter OTP to Login", max_chars=6)
             if st.button("Verify & Login"):
                 if verify_otp(st.session_state.otp_email, login_otp):
-                    _, user = get_user_data(st.session_state.otp_email)
+                    user = get_user_data(st.session_state.otp_email)
                     if user and str(user.get("verified", "")).lower() in ["yes", "true"]:
                         st.session_state.authenticated = True
                         st.session_state.email = st.session_state.otp_email
