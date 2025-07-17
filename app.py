@@ -10,19 +10,19 @@ from utils.gpt_analysis import analyze_reports
 
 st.set_page_config(page_title="🧠 Medical Report Analyzer", layout="centered")
 
-# Initialize session state
+# --------- Session State Initialization ---------
 for key in ["authenticated", "email", "name", "reports", "signup_info", "otp_email"]:
     if key not in st.session_state:
         st.session_state[key] = None if key != "authenticated" else False
 
 st.title("🧠 Medical Report Analyzer (PDF & Image)")
-st.caption("Upload one or more medical reports to get a summary, trends, and abnormalities using GPT-4.")
+st.caption("Upload medical reports to get AI-powered summaries and anomaly detection.")
 
-# -------------------- 🔐 LOGIN/SIGNUP --------------------
+# --------- AUTH FLOW ---------
 if not st.session_state.authenticated:
     tab1, tab2 = st.tabs(["🔐 Login", "🆕 Sign Up"])
 
-    # ---------------- LOGIN ----------------
+    # --------- LOGIN TAB ---------
     with tab1:
         email = st.text_input("📧 Enter your email to login")
         if st.button("Send OTP", key="login_otp_btn"):
@@ -40,7 +40,7 @@ if not st.session_state.authenticated:
             if st.button("Verify & Login"):
                 if verify_otp(st.session_state.otp_email, login_otp):
                     _, user = get_user_data(st.session_state.otp_email)
-                    if user and user.get("verified", "") == "TRUE":
+                    if user and str(user.get("verified", "")).lower() in ["yes", "true"]:
                         st.session_state.authenticated = True
                         st.session_state.email = st.session_state.otp_email
                         st.session_state.name = user.get("name", "")
@@ -51,7 +51,7 @@ if not st.session_state.authenticated:
                 else:
                     st.error("❌ Invalid OTP.")
 
-    # ---------------- SIGNUP ----------------
+    # --------- SIGNUP TAB ---------
     with tab2:
         name = st.text_input("👤 Full Name")
         signup_email = st.text_input("📧 Email")
@@ -97,7 +97,7 @@ if not st.session_state.authenticated:
                 else:
                     st.error("❌ Invalid OTP. Try again.")
 
-# -------------------- MAIN APP --------------------
+# --------- MAIN APP AFTER LOGIN ---------
 else:
     st.success(f"✅ Logged in as {st.session_state.name} ({st.session_state.email}) — Remaining uses: {remaining_uses(st.session_state.email)}")
 
