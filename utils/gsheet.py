@@ -24,4 +24,3 @@ def append_row_to_sheet(sheet_url, row, clear=False):
             sheet.append_row(r)
     else:
         sheet.append_row(row)
-
