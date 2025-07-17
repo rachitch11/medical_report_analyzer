@@ -43,7 +43,7 @@ if not st.session_state.authenticated:
                         st.session_state.authenticated = True
                         st.session_state.email = st.session_state.otp_email
                         st.session_state.name = user.get("name", "")
-                        st.success(f"✅ Welcome, {st.session_state.name}. You have {remaining_uses(email)} uses remaining.")
+                        st.success(f"✅ Welcome, {st.session_state.name}. You have {remaining_uses(user)} uses remaining.")
                         st.rerun()
                     else:
                         st.error("❌ Account not verified.")
@@ -99,7 +99,8 @@ if not st.session_state.authenticated:
 
 # -------------------- MAIN APP --------------------
 else:
-    st.success(f"✅ Logged in as {st.session_state.name} ({st.session_state.email}) — Remaining uses: {remaining_uses(st.session_state.email)}")
+    _, user = get_user_data(st.session_state.email)
+    st.success(f"✅ Logged in as {st.session_state.name} ({st.session_state.email}) — Remaining uses: {remaining_uses(user)}")
 
     uploaded_files = st.file_uploader(
         "📁 Upload your medical reports (PDF or image)",
@@ -131,7 +132,6 @@ else:
             else:
                 st.error("❌ Usage limit reached.")
 
-    # 🔒 Logout Button
     if st.button("Logout"):
         st.session_state.clear()
         st.success("✅ Logged out successfully.")
