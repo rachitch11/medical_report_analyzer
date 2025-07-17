@@ -1,14 +1,14 @@
 import streamlit as st
 from utils.auth import (
     get_user_data, verify_password,
-    add_new_user, update_usage, remaining_uses
+    add_new_user, update_usage, remaining_uses,
+    generate_and_send_otp, verify_otp, is_verified
 )
 from utils.report_parser import parse_medical_report
 from utils.gpt_analysis import analyze_reports
 
 st.set_page_config(page_title="🧠 Medical Report Analyzer", layout="centered")
 
-# Initialize session state
 for key in ["authenticated", "email", "name", "reports"]:
     if key not in st.session_state:
         st.session_state[key] = None if key != "authenticated" else False
@@ -26,11 +26,14 @@ if not st.session_state.authenticated:
         if st.button("Login"):
             _, user = get_user_data(email)
             if user and verify_password(user.get("password", ""), password):
-                st.session_state.authenticated = True
-                st.session_state.email = email
-                st.session_state.name = user.get("name", "")
-                st.success(f"✅ Welcome, {st.session_state.name}. You have {remaining_uses(email)} uses remaining.")
-                st.rerun()
+                if is_verified(email):
+                    st.session_state.authenticated = True
+                    st.session_state.email = email
+                    st.session_state.name = user.get("name", "")
+                    st.success(f"✅ Welcome, {st.session_state.name}. You have {remaining_uses(email)} uses remaining.")
+                    st.rerun()
+                else:
+                    st.error("❌ Email not verified. Please complete signup and verify OTP.")
             else:
                 st.error("❌ Invalid credentials")
 
@@ -39,18 +42,31 @@ if not st.session_state.authenticated:
         new_email = st.text_input("📧 New email", key="signup_email")
         new_password = st.text_input("🔐 New password", type="password", key="signup_password")
         confirm_password = st.text_input("🔁 Confirm password", type="password", key="signup_confirm")
+        age = st.text_input("🎂 Age", key="signup_age")
+        gender = st.selectbox("⚧ Gender", ["Male", "Female", "Other"], key="signup_gender")
 
-        if st.button("Sign Up"):
+        if st.button("Generate OTP"):
             _, user = get_user_data(new_email)
             if user:
                 st.error("❌ User already exists")
-            elif not name or not new_email or not new_password or not confirm_password:
-                st.warning("⚠️ Please fill in all fields.")
+            elif not name or not new_email or not new_password or not confirm_password or not age:
+                st.warning("⚠️ Please fill all fields.")
             elif new_password != confirm_password:
                 st.error("❌ Passwords do not match")
             else:
-                add_new_user(new_email, new_password, name)
-                st.success("✅ Account created. You can log in now.")
+                otp = generate_and_send_otp(new_email)
+                add_new_user(new_email, new_password, name, age, gender, otp)
+                st.session_state.otp_email = new_email
+                st.success("✅ OTP sent to your email.")
+
+        if "otp_email" in st.session_state:
+            entered_otp = st.text_input("🔑 Enter OTP sent to your email")
+            if st.button("Verify OTP"):
+                if verify_otp(st.session_state.otp_email, entered_otp):
+                    st.success("✅ Email verified. You can now log in.")
+                    del st.session_state.otp_email
+                else:
+                    st.error("❌ Invalid OTP")
 
 else:
     st.success(f"✅ Logged in as {st.session_state.name} ({st.session_state.email}) — Remaining uses: {remaining_uses(st.session_state.email)}")
@@ -85,7 +101,6 @@ else:
             else:
                 st.error("❌ Usage limit reached.")
 
-    # 🔒 Logout Button
     if st.button("Logout"):
         st.session_state.clear()
         st.success("✅ Logged out successfully.")
