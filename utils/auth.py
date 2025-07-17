@@ -1,62 +1,62 @@
-import streamlit as st
 import gspread
-from google.oauth2.service_account import Credentials
+import streamlit as st
+from google.oauth2 import service_account
 
-# Define Google Sheets scope
-SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+# ✅ Admin email with unlimited usage
+ADMIN_EMAIL = "rachit87911094@gmail.com"
 
-# Authenticate using Streamlit secrets
-try:
-    creds_dict = st.secrets["gcp_service_account"]
+SCOPE = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+]
 
-    creds = Credentials.from_service_account_info(
-        creds_dict,
-        scopes=SCOPES
-    )
-
-    client = gspread.authorize(creds)
-    sheet = client.open("MedicalReportAnalyzer").worksheet("Users")
-
-except KeyError:
-    st.error("Google Cloud credentials not found in st.secrets.")
-    st.stop()
-except Exception as e:
-    st.error(f"Unable to connect to Google Sheet: {e}")
-    st.stop()
-
-
-# User-related helper functions
+def get_sheet():
+    try:
+        credentials = service_account.Credentials.from_service_account_file(
+            "gcp_credentials.json", scopes=SCOPE
+        )
+    except:
+        credentials = service_account.Credentials.from_service_account_info(
+            st.secrets["GCP_CREDS"], scopes=SCOPE
+        )
+    client = gspread.authorize(credentials)
+    sheet = client.open("MedicalReportUsers").worksheet("users")
+    return sheet
 
 def get_user_data(email):
-    records = sheet.get_all_records()
-    for i, record in enumerate(records):
-        if record["email"].lower() == email.lower():
-            return i + 2, record  # account for header row
+    sheet = get_sheet()
+    data = sheet.get_all_records()
+    for i, row in enumerate(data):
+        if row.get("email", "").strip().lower() == email.strip().lower():
+            return i + 2, row  # +2 for header and 1-based index
     return None, None
 
+def add_new_user(email, password, name, max_usage=5):
+    sheet = get_sheet()
+    sheet.append_row([email.strip().lower(), password.strip(), 0, max_usage, name.strip()])
 
-def login(email, password):
+def verify_password(stored_password, entered_password):
+    try:
+        return str(stored_password).strip() == str(entered_password).strip()
+    except Exception:
+        return False
+
+
+
+def update_usage(email):
+    if email.strip().lower() == ADMIN_EMAIL.strip().lower():
+        return True
+    row_num, user = get_user_data(email)
+    if user and user["usage"] < user["max_usage"]:
+        sheet = get_sheet()
+        sheet.update_cell(row_num, 3, user["usage"] + 1)  # usage is 3rd column
+        return True
+    return False
+
+def remaining_uses(email):
+    if email.strip().lower() == ADMIN_EMAIL.strip().lower():
+        return float("inf")
     _, user = get_user_data(email)
-    if user and user["password"] == password:
-        return True, user
-    return False, None
-
-
-def signup(name, email, password, age, gender):
-    _, existing_user = get_user_data(email)
-    if existing_user:
-        return False, "User already exists."
-    sheet.append_row([name, email, password, age, gender, 0])
-    return True, "Signup successful!"
-
-
-def increment_usage(email):
-    row, user = get_user_data(email)
-    if row:
-        current_usage = int(user.get("usage_count", 0))
-        sheet.update_cell(row, 6, current_usage + 1)
-
-
-def get_user_info(email):
-    _, user = get_user_data(email)
-    return user
+    if user:
+        return user["max_usage"] - user["usage"]
+    return 0
