@@ -6,6 +6,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from utils.gsheet import get_sheet_data, append_row_to_sheet
 
+
 # Load secrets
 SHEET_URL = st.secrets["EMAIL"]["SHEET_URL"]
 SENDER_EMAIL = st.secrets["EMAIL"]["sender_email"]
