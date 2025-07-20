@@ -57,6 +57,16 @@ if not st.session_state.authenticated:
         if st.session_state.signup_otp_sent:
             entered_otp = st.text_input("🔐 Enter the OTP sent to your email", key="entered_signup_otp")
 
+            # ✅ Resend OTP button
+            if st.button("🔄 Resend OTP"):
+                otp = str(random.randint(100000, 999999))
+                success = send_otp_email(new_email, otp)
+                if success:
+                    st.session_state.signup_otp = otp
+                    st.success("✅ OTP resent successfully.")
+                else:
+                    st.error("❌ Failed to resend OTP. Please try again.")
+
             if st.button("Sign Up"):
                 _, user = get_user_data(new_email)
                 if user:
