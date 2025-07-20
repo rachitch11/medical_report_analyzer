@@ -1,5 +1,7 @@
 import gspread
 import streamlit as st
+import smtplib
+from email.mime.text import MIMEText
 from google.oauth2 import service_account
 
 # ✅ Admin email with unlimited usage
@@ -31,17 +33,25 @@ def get_user_data(email):
             return i + 2, row  # +2 for header and 1-based index
     return None, None
 
-def add_new_user(email, password, name, max_usage=5):
+def add_new_user(email, password, name, age="", gender="", max_usage=5, verified="", otp=""):
     sheet = get_sheet()
-    sheet.append_row([email.strip().lower(), password.strip(), 0, max_usage, name.strip()])
+    sheet.append_row([
+        email.strip().lower(),
+        password.strip(),
+        0,
+        max_usage,
+        name.strip(),
+        age,
+        gender,
+        verified,
+        otp
+    ])
 
 def verify_password(stored_password, entered_password):
     try:
         return str(stored_password).strip() == str(entered_password).strip()
     except Exception:
         return False
-
-
 
 def update_usage(email):
     if email.strip().lower() == ADMIN_EMAIL.strip().lower():
@@ -60,3 +70,22 @@ def remaining_uses(email):
     if user:
         return user["max_usage"] - user["usage"]
     return 0
+
+def send_otp_email(recipient_email, otp_code):
+    try:
+        sender_email = st.secrets["EMAIL_USER"]
+        sender_password = st.secrets["EMAIL_PASS"]
+
+        msg = MIMEText(f"Your OTP for Medical Report Analyzer signup is: {otp_code}")
+        msg['Subject'] = "🔐 Your OTP for Signup Verification"
+        msg['From'] = sender_email
+        msg['To'] = recipient_email
+
+        server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
+        server.login(sender_email, sender_password)
+        server.send_message(msg)
+        server.quit()
+        return True
+    except Exception as e:
+        print("Email sending error:", e)
+        return False
