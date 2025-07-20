@@ -55,7 +55,7 @@ if not st.session_state.authenticated:
                 st.error("❌ Failed to send OTP. Please try again.")
 
         if st.session_state.signup_otp_sent:
-            entered_otp = st.text_input("🔐 Enter the OTP sent to your email", key="signup_otp")
+           entered_otp = st.text_input("🔐 Enter the OTP sent to your email", key="entered_signup_otp")
 
             if st.button("Sign Up"):
                 _, user = get_user_data(new_email)
