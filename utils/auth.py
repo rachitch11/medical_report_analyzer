@@ -3,6 +3,7 @@ import streamlit as st
 import smtplib
 from email.mime.text import MIMEText
 from google.oauth2 import service_account
+import random
 
 # ✅ Admin email with unlimited usage
 ADMIN_EMAIL = "rachit87911094@gmail.com"
@@ -94,3 +95,12 @@ def send_otp_email(recipient_email, otp_code):
     except Exception as e:
         print("Email sending error:", e)
         return False
+
+# ✅ Function to update/resend OTP
+def update_and_resend_otp(email):
+    otp = str(random.randint(100000, 999999))
+    row_num, _ = get_user_data(email)
+    if row_num:
+        get_sheet().update_cell(row_num, 9, otp)  # OTP is in 9th column
+        return send_otp_email(email, otp), otp
+    return False, None
