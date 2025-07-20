@@ -73,16 +73,21 @@ def remaining_uses(email):
 
 def send_otp_email(recipient_email, otp_code):
     try:
-        sender_email = st.secrets["EMAIL_USER"]
-        sender_password = st.secrets["EMAIL_PASS"]
+        smtp_config = st.secrets["email_config"]
+        sender_email = smtp_config["from_email"]
+        smtp_username = smtp_config["smtp_username"]
+        smtp_password = smtp_config["smtp_password"]
+        smtp_server = smtp_config["smtp_server"]
+        smtp_port = smtp_config["smtp_port"]
 
         msg = MIMEText(f"Your OTP for Medical Report Analyzer signup is: {otp_code}")
         msg['Subject'] = "🔐 Your OTP for Signup Verification"
         msg['From'] = sender_email
         msg['To'] = recipient_email
 
-        server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
-        server.login(sender_email, sender_password)
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(smtp_username, smtp_password)
         server.send_message(msg)
         server.quit()
         return True
